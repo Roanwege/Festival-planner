@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { CalendarDays, MapPin, Ticket, Search, Filter, ChevronLeft, ChevronRight, Cloud, CloudOff, RefreshCw } from "lucide-react";
+import { CalendarDays, MapPin, Ticket, Search, Filter, ChevronLeft, ChevronRight, Cloud, CloudOff, RefreshCw, Plus, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -320,6 +320,7 @@ export default function FestivalCalendarApp() {
   const [statusFilter, setStatusFilter] = useState("Alle");
   const [monthIndex, setMonthIndex] = useState(4);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Load from JSONBin on mount; seed with initialEvents if bin is empty
   useEffect(() => {
@@ -363,6 +364,16 @@ export default function FestivalCalendarApp() {
       if (isJsonBinConfigured) saveDebounced(updated);
       return updated;
     });
+  }
+
+  function addEvent(newEvent) {
+    setEvents((current) => {
+      const updated = [...current, newEvent].sort((a, b) => a.date.localeCompare(b.date));
+      if (isJsonBinConfigured) saveDebounced(updated);
+      return updated;
+    });
+    setShowAddModal(false);
+    setMonthIndex(parseInt(newEvent.date.split("-")[1]) - 1);
   }
 
   function manualRefresh() {
@@ -451,6 +462,15 @@ export default function FestivalCalendarApp() {
           </div>
         </header>
 
+        <section className="mb-6 flex gap-3">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4" />
+            Nieuw event
+          </button>
+        </section>
         <section className="mb-6 grid gap-4 md:grid-cols-[1fr_auto]">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -569,6 +589,10 @@ export default function FestivalCalendarApp() {
           </div>
         </main>
       </div>
+
+      {showAddModal && (
+        <AddEventModal onClose={() => setShowAddModal(false)} onAdd={addEvent} />
+      )}
     </div>
   );
 }
@@ -631,12 +655,11 @@ function EventDetail({ event, updateEvent }) {
           })}
         </div>
       </div>
-      <EditableField label="Met wie" value={event.withWhom || "Nog in te vullen"}
-        options={["Nog in te vullen", "Inge", "Roan", "Inge + Roan", "Inge + groep", "Frank", "Floor", "Mies", "Alleen", "Anders"]}
-        onChange={(v) => updateEvent(identity.date, identity.title, "withWhom", v)} />
-      <EditableField label="Aanwezig overall" value={event.present}
-        options={["n.t.b.", "Alleen Inge", "Alleen Roan", "Samen", "Nee", "Twijfel", "Misschien later aansluiten"]}
-        onChange={(v) => updateEvent(identity.date, identity.title, "present", v)} />
+      <TagInputField
+        label="Met wie"
+        value={event.withWhom || ""}
+        onChange={(v) => updateEvent(identity.date, identity.title, "withWhom", v)}
+      />
       <div className="rounded-2xl bg-slate-100 p-4">
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Opmerking</div>
         <textarea
@@ -647,6 +670,46 @@ function EventDetail({ event, updateEvent }) {
           placeholder="Voeg een opmerking toe..."
         />
       </div>
+    </div>
+  );
+}
+
+function TagInputField({ label, value, onChange }) {
+  const [inputValue, setInputValue] = React.useState("");
+  const tags = value ? value.split(",").map(t => t.trim()).filter(Boolean) : [];
+
+  function addTag(e) {
+    if (e.key === "Enter" && inputValue.trim()) {
+      e.preventDefault();
+      const newTags = [...tags, inputValue.trim()];
+      onChange(newTags.join(", "));
+      setInputValue("");
+    }
+  }
+
+  function removeTag(index) {
+    const newTags = tags.filter((_, i) => i !== index);
+    onChange(newTags.join(", "));
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-3">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {tags.map((tag, i) => (
+          <span key={i} className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-sm font-medium text-slate-700">
+            {tag}
+            <button onClick={() => removeTag(i)} className="ml-1 text-slate-400 hover:text-rose-500 transition text-base leading-none">&times;</button>
+          </span>
+        ))}
+      </div>
+      <input
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={addTag}
+        placeholder="Typ een naam en druk Enter..."
+        className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+      />
     </div>
   );
 }
@@ -671,6 +734,135 @@ function Info({ icon, label, value }) {
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
         <div className="font-medium text-slate-800">{value}</div>
       </div>
+    </div>
+  );
+}
+
+function AddEventModal({ onClose, onAdd }) {
+  const [form, setForm] = React.useState({
+    date: "",
+    title: "",
+    location: "",
+    city: "",
+    price: "",
+    category: "Festival",
+    ingeStatus: "Nog in te vullen",
+    ingeTicket: "Nee",
+    roanStatus: "Nog in te vullen",
+    roanTicket: "Nee",
+    withWhom: "",
+    note: "",
+  });
+
+  function set(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function handleSubmit() {
+    if (!form.date || !form.title) return;
+    const [year, month, day] = form.date.split("-").map(Number);
+    const labelDate = `${day} ${["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"][month-1]}`;
+    onAdd({ ...form, labelDate, present: "n.t.b." });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl overflow-y-auto max-h-[90vh]">
+        <div className="flex items-center justify-between border-b border-slate-200 p-6">
+          <h2 className="text-2xl font-semibold">Nieuw event toevoegen</h2>
+          <button onClick={onClose} className="rounded-full p-2 hover:bg-slate-100 transition">
+            <X className="h-5 w-5 text-slate-500" />
+          </button>
+        </div>
+        <div className="space-y-4 p-6">
+          <Field label="Datum *">
+            <input type="date" value={form.date} onChange={(e) => set("date", e.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100" />
+          </Field>
+          <Field label="Naam *">
+            <input type="text" value={form.title} onChange={(e) => set("title", e.target.value)}
+              placeholder="bijv. Suzan & Freek"
+              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Locatie">
+              <input type="text" value={form.location} onChange={(e) => set("location", e.target.value)}
+                placeholder="bijv. GelreDome"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100" />
+            </Field>
+            <Field label="Stad">
+              <input type="text" value={form.city} onChange={(e) => set("city", e.target.value)}
+                placeholder="bijv. Arnhem"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100" />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Prijs">
+              <input type="text" value={form.price} onChange={(e) => set("price", e.target.value)}
+                placeholder="bijv. €49,50"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100" />
+            </Field>
+            <Field label="Categorie">
+              <select value={form.category} onChange={(e) => set("category", e.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100">
+                {["Festival","Concert","Clubnacht","Bruiloft","ADE","Anders"].map(c => <option key={c}>{c}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Status Inge">
+              <select value={form.ingeStatus} onChange={(e) => set("ingeStatus", e.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100">
+                {["Nog in te vullen","Definitief","Wil gaan","Twijfel","Gaat niet"].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </Field>
+            <Field label="Ticket Inge">
+              <select value={form.ingeTicket} onChange={(e) => set("ingeTicket", e.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100">
+                {["Nee","Ja"].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Status Roan">
+              <select value={form.roanStatus} onChange={(e) => set("roanStatus", e.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100">
+                {["Nog in te vullen","Definitief","Wil gaan","Twijfel","Gaat niet"].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </Field>
+            <Field label="Ticket Roan">
+              <select value={form.roanTicket} onChange={(e) => set("roanTicket", e.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100">
+                {["Nee","Ja"].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label="Opmerking">
+            <textarea value={form.note} onChange={(e) => set("note", e.target.value)}
+              rows={3} placeholder="Optionele opmerking..."
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100" />
+          </Field>
+        </div>
+        <div className="flex gap-3 border-t border-slate-200 p-6">
+          <button onClick={onClose}
+            className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            Annuleren
+          </button>
+          <button onClick={handleSubmit} disabled={!form.date || !form.title}
+            className="flex-1 rounded-2xl bg-slate-900 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">
+            Event toevoegen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      {children}
     </div>
   );
 }
