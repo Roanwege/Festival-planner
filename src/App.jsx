@@ -376,6 +376,15 @@ export default function FestivalCalendarApp() {
     setMonthIndex(parseInt(newEvent.date.split("-")[1]) - 1);
   }
 
+  function deleteEvent(date, title) {
+    setEvents((current) => {
+      const updated = current.filter((e) => !(e.date === date && e.title === title));
+      if (isJsonBinConfigured) saveDebounced(updated);
+      return updated;
+    });
+    setSelectedEvent(null);
+  }
+
   function manualRefresh() {
     if (!isJsonBinConfigured) return;
     setSyncStatus("loading");
@@ -394,7 +403,13 @@ export default function FestivalCalendarApp() {
   }), [events, query, statusFilter]);
 
   const monthEvents = useMemo(() =>
-    filteredEvents.filter((e) => parseDate(e.date).getMonth() === monthIndex),
+    filteredEvents.filter((e) => {
+      const start = parseDate(e.date);
+      const end = e.dateEnd ? parseDate(e.dateEnd) : start;
+      const monthStart = new Date(2026, monthIndex, 1);
+      const monthEnd = new Date(2026, monthIndex + 1, 0);
+      return start <= monthEnd && end >= monthStart;
+    }),
     [filteredEvents, monthIndex]
   );
 
@@ -410,8 +425,10 @@ export default function FestivalCalendarApp() {
   function eventsForDay(day) {
     if (!day) return [];
     return filteredEvents.filter((e) => {
-      const d = parseDate(e.date);
-      return d.getFullYear() === day.getFullYear() && d.getMonth() === day.getMonth() && d.getDate() === day.getDate();
+      const start = parseDate(e.date);
+      const end = e.dateEnd ? parseDate(e.dateEnd) : start;
+      const dayTime = day.getTime();
+      return dayTime >= start.getTime() && dayTime <= end.getTime();
     });
   }
 
@@ -582,7 +599,7 @@ export default function FestivalCalendarApp() {
               <CardContent className="p-5 md:p-6">
                 <h2 className="mb-4 text-2xl font-semibold">Event details</h2>
                 {selectedEvent ? (
-                  <EventDetail event={selectedEvent} updateEvent={updateEvent} />
+                  <EventDetail event={selectedEvent} updateEvent={updateEvent} deleteEvent={deleteEvent} />
                 ) : (
                   <div className="rounded-2xl bg-slate-100 p-5 text-slate-600">Klik op een event in de kalender om details te bekijken.</div>
                 )}
@@ -636,7 +653,7 @@ function Stat({ label, value }) {
   );
 }
 
-function EventDetail({ event, updateEvent }) {
+function EventDetail({ event, updateEvent, deleteEvent }) {
   const identity = { date: event.date, title: event.title };
   const people = [
     { person: "I", name: "Inge", status: event.ingeStatus, ticket: event.ingeTicket, statusField: "ingeStatus", ticketField: "ingeTicket" },
@@ -645,10 +662,18 @@ function EventDetail({ event, updateEvent }) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="text-sm font-medium text-slate-500">{event.labelDate} 2026</div>
-        <h3 className="text-3xl font-semibold tracking-tight">{event.title}</h3>
-        {event.dateEnd && <div className="text-sm text-slate-400">t/m {event.dateEnd}</div>}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium text-slate-500">{event.labelDate} 2026</div>
+          <h3 className="text-3xl font-semibold tracking-tight">{event.title}</h3>
+          {event.dateEnd && <div className="text-sm text-slate-400">t/m {event.dateEnd}</div>}
+        </div>
+        <button
+          onClick={() => { if (window.confirm(`"${event.title}" verwijderen?`)) deleteEvent(event.date, event.title); }}
+          className="mt-1 flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-100"
+        >
+          <X className="h-3.5 w-3.5" /> Verwijderen
+        </button>
       </div>
       <div className="flex items-center gap-2 rounded-2xl bg-slate-100 p-3">
         <PersonBadge person="I" status={event.ingeStatus} ticket={event.ingeTicket} />
