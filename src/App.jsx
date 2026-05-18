@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 // 1. Go to https://jsonbin.io and create a free account
 // 2. Create a new Bin with the initial events JSON (or any valid JSON to start)
 // 3. Copy your Bin ID and Master Key below
-const JSONBIN_BIN_ID = "JOUW_BIN_ID_HIER";       // e.g. "6650a1234abc..."
-const JSONBIN_API_KEY = "JOUW_API_KEY_HIER";      // e.g. "$2a$10$..."
+const JSONBIN_BIN_ID = "6a0b6224ee5a733b12de2088";
+const JSONBIN_API_KEY = "$2a$10$IpC4Ap7QUoONlsnak2Vmyuk.ppIRLjiVYEjaUq6R1s3W5cJzLnJ.2";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const initialEvents = [
