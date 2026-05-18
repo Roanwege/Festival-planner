@@ -4,9 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 // ─── JSONBin config ──────────────────────────────────────────────────────────
-// 1. Go to https://jsonbin.io and create a free account
-// 2. Create a new Bin with the initial events JSON (or any valid JSON to start)
-// 3. Copy your Bin ID and Master Key below
 const JSONBIN_BIN_ID = "6a0b6224ee5a733b12de2088";
 const JSONBIN_API_KEY = "$2a$10$IpC4Ap7QUoONlsnak2Vmyuk.ppIRLjiVYEjaUq6R1s3W5cJzLnJ.2";
 // ─────────────────────────────────────────────────────────────────────────────
@@ -324,11 +321,15 @@ export default function FestivalCalendarApp() {
   const [monthIndex, setMonthIndex] = useState(4);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // Load from JSONBin on mount
+  // Load from JSONBin on mount; seed with initialEvents if bin is empty
   useEffect(() => {
     if (!isJsonBinConfigured) return;
     loadFromJsonBin()
       .then((remoteEvents) => {
+        if (!remoteEvents || remoteEvents.length === 0) {
+          setEvents(initialEvents);
+          return saveToJsonBin(initialEvents).then(() => setSyncStatus("synced"));
+        }
         setEvents(remoteEvents);
         setSyncStatus("synced");
       })
