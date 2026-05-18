@@ -648,6 +648,7 @@ function EventDetail({ event, updateEvent }) {
       <div>
         <div className="text-sm font-medium text-slate-500">{event.labelDate} 2026</div>
         <h3 className="text-3xl font-semibold tracking-tight">{event.title}</h3>
+        {event.dateEnd && <div className="text-sm text-slate-400">t/m {event.dateEnd}</div>}
       </div>
       <div className="flex items-center gap-2 rounded-2xl bg-slate-100 p-3">
         <PersonBadge person="I" status={event.ingeStatus} ticket={event.ingeTicket} />
@@ -771,6 +772,7 @@ function Info({ icon, label, value }) {
 function AddEventModal({ onClose, onAdd }) {
   const [form, setForm] = React.useState({
     date: "",
+    dateEnd: "",
     title: "",
     location: "",
     city: "",
@@ -790,8 +792,13 @@ function AddEventModal({ onClose, onAdd }) {
 
   function handleSubmit() {
     if (!form.date || !form.title) return;
+    const maanden = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
     const [year, month, day] = form.date.split("-").map(Number);
-    const labelDate = `${day} ${["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"][month-1]}`;
+    let labelDate = `${day} ${maanden[month-1]}`;
+    if (form.dateEnd) {
+      const [y2, m2, d2] = form.dateEnd.split("-").map(Number);
+      labelDate = `${day} – ${d2} ${maanden[m2-1]}`;
+    }
     onAdd({ ...form, labelDate, present: "n.t.b." });
   }
 
@@ -805,10 +812,16 @@ function AddEventModal({ onClose, onAdd }) {
           </button>
         </div>
         <div className="space-y-4 p-6">
-          <Field label="Datum *">
-            <input type="date" value={form.date} onChange={(e) => set("date", e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100" />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Datum van *">
+              <input type="date" value={form.date} onChange={(e) => set("date", e.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100" />
+            </Field>
+            <Field label="Datum tot (optioneel)">
+              <input type="date" value={form.dateEnd} onChange={(e) => set("dateEnd", e.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100" />
+            </Field>
+          </div>
           <Field label="Naam *">
             <input type="text" value={form.title} onChange={(e) => set("title", e.target.value)}
               placeholder="bijv. Suzan & Freek"
@@ -835,7 +848,7 @@ function AddEventModal({ onClose, onAdd }) {
             <Field label="Categorie">
               <select value={form.category} onChange={(e) => set("category", e.target.value)}
                 className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100">
-                {["Festival","Concert","Clubnacht","Bruiloft","ADE","Anders"].map(c => <option key={c}>{c}</option>)}
+                {["Festival","Concert","Clubnacht","Bruiloft","ADE","Vakantie","Anders"].map(c => <option key={c}>{c}</option>)}
               </select>
             </Field>
           </div>
